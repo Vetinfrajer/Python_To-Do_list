@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Todo List</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .completed {
+            text-decoration: line-through;
+            color: green;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 class="mt-5">Todo List</h1>
+
+    <h3>Good day, {{ current_user.username }}!</h3>
+    <form id="logout-form" action="{{ url_for('logout') }}" method="POST" style="display:inline;">
+        <button type="submit" class="btn btn-danger">Logout</button>
+    </form>
+
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <h5>Statistics</h5>
+            <p>Completed tasks this week: <span id="completed-count">{{ completed_count }}</span></p>
+            <p>Ongoing tasks this week: <span id="ongoing-count">{{ ongoing_count }}</span></p>
+        </div>
+        <div class="col-md-8">
+            <form id="task-form" class="mb-3">
+                <input type="text" id="task-title" placeholder="Add a new task" class="form-control" required>
+                <button type="submit" class="btn btn-primary mt-2">Add Task</button>
+            </form>
+
+            <ul class="list-group" id="task-list">
+                {% for task in tasks %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center" id="task-{{ task.id }}">
+                        <span class="task-title {% if task.completed %}completed{% endif %}">{{ task.title }}</span>
+                        <span class="task-date">{{ task.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+                        <form action="{{ url_for('complete', task_id=task.id) }}" method="POST" class="ml-2 complete-form">
+                            <button type="submit" class="btn btn-success">Mark as Complete</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Přidání úkolu pomocí AJAX
+        $('#task-form').on('submit', function(e) {
+            e.preventDefault(); // Zabraňuje standardnímu odeslání formuláře
+            let taskTitle = $('#task-title').val();
+
+            $.ajax({
+                type: 'POST',
+                url: '{{ url_for("index") }}',
+                data: { title: taskTitle },
+                success: function(data) {
+                    $('#task-list').append('<li class="list-group-item d-flex justify-content-between align-items-center" id="task-' + data.id + '">'
+                        + '<span class="task-title">' + data.title + '</span>'
+                        + '<span class="task-date">' + new Date().toISOString().slice(0, 19).replace("T", " ") + '</span>'  // Přidání aktuálního data
+                        + '<form action="/complete/' + data.id + '" method="POST" class="ml-2 complete-form">'
+                        + '<button type="submit" class="btn btn-success">Complete</button>'
+                        + '</form></li>');
+                    $('#task-title').val(''); // Vyčistí pole pro přidání úkolu
+                    
+                    // Aktualizace statistik
+                    updateTaskStats();
+                },
+                error: function() {
+                    alert('Error adding task');
+                }
+            });
+        });
+
+        // Dokončení úkolu
+// Dokončení úkolu
+$(document).on('submit', '.complete-form', function(e) {
+    e.preventDefault(); // Zabraňuje standardnímu odeslání formuláře
+    const taskItem = $(this).closest('li'); // Najde rodičovský element úkolu
+
+    $.ajax({
+        type: 'POST',
+        url: $(this).attr('action'),
+        success: function() {
+            // Přidání třídy pro změnu barvy a efektní animaci
+            taskItem.addClass('completed').fadeOut(500, function() {
+                $(this).remove(); // Odebere úkol z DOM
+            });
+        },
+        error: function() {
+            alert('Error completing task');
+        }
+    });
+});
+
+        // Funkce pro aktualizaci statistik
+        function updateTaskStats() {
+            $.ajax({
+                type: 'GET',
+                url: '{{ url_for("task_stats") }}',
+                success: function(data) {
+                    $('#completed-count').text(data.completed_count);
+                    $('#ongoing-count').text(data.ongoing_count);
+                },
+                error: function() {
+                    alert('Error fetching task statistics');
+                }
+            });
+        }
+    });
+</script>
+</body>
+</html>
